@@ -1,3 +1,5 @@
+FIXED PROJECT URL
+
 # Aisseveryday v2 — Supabase sync
 
 Теперь веб-версия и Telegram Mini App используют одну таблицу `planner_state`.

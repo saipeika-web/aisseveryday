@@ -1,6 +1,6 @@
 
 (() => {
-const SUPABASE_URL="https://cswvtuhbxvyigodcgwox.supabase.co";
+const SUPABASE_URL="https://cswvtuhbxvwigodcgwox.supabase.co";
 const SUPABASE_KEY="sb_publishable_vPVjJOw_kiKRnsg0P8epZQ_TAjEcq0r";
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand();}
