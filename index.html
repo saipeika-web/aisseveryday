@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f2ed" />
+  <title>Мой навигатор</title>
+  <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow" id="todayLabel"></div>
+        <h1>Мой навигатор</h1>
+      </div>
+      <button id="settingsButton" class="icon-button" aria-label="Настройки">⋯</button>
+    </header>
+
+    <main>
+      <section class="screen active" data-screen="today">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">СЕГОДНЯ</div>
+            <h2 id="todayHeading">Сегодня</h2>
+          </div>
+          <div class="counter" id="todayCounter">0/0</div>
+        </div>
+
+        <article class="streak-card">
+          <div class="streak-flame">🔥</div>
+          <div>
+            <strong>Ударный режим</strong>
+            <p id="streakText">Неделя только начинается.</p>
+          </div>
+        </article>
+
+        <div class="task-list" id="todayTasks"></div>
+
+        <form class="quick-add" id="addTaskForm">
+          <input id="taskInput" maxlength="120" placeholder="Добавить задачу…" autocomplete="off" />
+          <button type="submit">+</button>
+        </form>
+
+        <details class="done-block">
+          <summary>Выполнено · <span id="doneCount">0</span></summary>
+          <div class="task-list done" id="doneTasks"></div>
+        </details>
+      </section>
+
+      <section class="screen" data-screen="week">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow" id="weekDates"></div>
+            <h2>Неделя</h2>
+          </div>
+          <button class="small-button" id="editWeekFocus">Фокус</button>
+        </div>
+
+        <article class="focus-card">
+          <div class="eyebrow">ГЛАВНЫЙ ФОКУС</div>
+          <h3 id="weekFocus"></h3>
+        </article>
+
+        <div class="course-grid" id="weekCourse"></div>
+
+        <div class="subhead">
+          <h3>Задачи недели</h3>
+          <span id="weekTaskCounter"></span>
+        </div>
+        <div class="task-list" id="weekTasks"></div>
+      </section>
+
+      <section class="screen" data-screen="month">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow" id="monthName"></div>
+            <h2>Месяц</h2>
+          </div>
+          <button class="small-button" id="closeMonthButton">Ретро</button>
+        </div>
+
+        <article class="focus-card">
+          <div class="eyebrow">ТЕМА МЕСЯЦА</div>
+          <h3 id="monthTheme"></h3>
+        </article>
+
+        <div id="monthGoals" class="goal-list"></div>
+
+        <div class="subhead">
+          <div>
+            <div class="eyebrow">50 ЖЕЛАНИЙ</div>
+            <h3>В фокусе месяца</h3>
+          </div>
+          <button class="small-button" id="addWishToMonth">Добавить</button>
+        </div>
+        <div id="monthWishes" class="wish-list"></div>
+
+        <div class="retro-panel hidden" id="retroPanel">
+          <div class="subhead">
+            <div>
+              <div class="eyebrow">ЗАКРЫТЬ МЕСЯЦ</div>
+              <h3>Ретро</h3>
+            </div>
+            <button class="icon-button" id="closeRetro">×</button>
+          </div>
+          <div id="autoRetroStats" class="stats-grid"></div>
+          <label>Чем я довольна?
+            <textarea data-retro="proud"></textarea>
+          </label>
+          <label>Что не получилось и почему?
+            <textarea data-retro="failed"></textarea>
+          </label>
+          <label>Что поняла про себя?
+            <textarea data-retro="insight"></textarea>
+          </label>
+          <label>Что забираю в следующий месяц?
+            <textarea data-retro="next"></textarea>
+          </label>
+          <button class="primary-button" id="saveRetro">Сохранить ретро</button>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="year">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow" id="yearLabel"></div>
+            <h2>Мой год</h2>
+          </div>
+          <span class="counter" id="yearDayCounter"></span>
+        </div>
+
+        <div id="yearGoals" class="goal-list"></div>
+
+        <div class="subhead">
+          <div>
+            <div class="eyebrow">50 ЖЕЛАНИЙ</div>
+            <h3><span id="wishDoneCount">0</span> / 50 исполнено</h3>
+          </div>
+          <button class="small-button" id="openWishes">Все</button>
+        </div>
+        <div id="wishDots" class="wish-dots"></div>
+
+        <div class="subhead">
+          <div>
+            <div class="eyebrow">КОЛЛЕКЦИЯ</div>
+            <h3>Ачивки</h3>
+          </div>
+        </div>
+        <div id="achievements" class="achievement-grid"></div>
+
+        <div class="subhead">
+          <div>
+            <div class="eyebrow">НЕ ТОЛЬКО ЗАДАЧИ</div>
+            <h3>Моя история</h3>
+          </div>
+          <button class="small-button" id="rememberToday">⭐ Запомнить</button>
+        </div>
+        <div id="story" class="story-list"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-button active" data-target="today"><span>✓</span>Сегодня</button>
+      <button class="nav-button" data-target="week"><span>7</span>Неделя</button>
+      <button class="nav-button" data-target="month"><span>30</span>Месяц</button>
+      <button class="nav-button" data-target="year"><span>✦</span>Мой год</button>
+    </nav>
+  </div>
+
+  <dialog id="modal">
+    <form method="dialog" class="modal-card">
+      <div class="subhead">
+        <h3 id="modalTitle">Редактировать</h3>
+        <button class="icon-button" value="cancel">×</button>
+      </div>
+      <div id="modalBody"></div>
+      <button id="modalSave" class="primary-button" value="default">Сохранить</button>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
