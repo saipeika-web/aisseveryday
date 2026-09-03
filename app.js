@@ -58,7 +58,7 @@ function normalizeState(raw){
  merged.tasks=(raw?.tasks||seed.tasks).map(t=>{
    let sphere=t.sphere;
    if(!sphere) sphere=t.goal==='sport'?'health':t.goal==='work'?'work':t.goal==='life'?'impressions':'personal';
-   return {...t,sphere,linkType:t.linkType||(t.goal?'goal':null),linkId:t.linkId||(t.goal||null),kind:t.kind||'single',subtasks:(t.subtasks||[]).map(st=>({...st,id:st.id||uid()}))};
+   return {...t,sphere,linkType:t.linkType||(t.goal?'goal':null),linkId:t.linkId||(t.goal||null),kind:t.kind||'single',subtasks:(t.subtasks||[]).map(st=>({...st,id:st.id||uid(),date:st.date||null}))};
  });
  merged.retro={worked:'',didnt:'',why:'',insight:'',change:'',...(raw?.retro||{})};
  merged.wishes=(raw?.wishes||seed.wishes).map(w=>({
@@ -92,21 +92,62 @@ function linkedLabel(t){
  return '';
 }
 
+
+function isoDate(d){const x=new Date(d);x.setHours(12,0,0,0);return x.toISOString().slice(0,10)}
+function todayISO(){return isoDate(new Date())}
+function weekDays(){
+ const now=new Date(); now.setHours(12,0,0,0);
+ const day=(now.getDay()+6)%7;
+ const monday=new Date(now); monday.setDate(now.getDate()-day);
+ return Array.from({length:7},(_,i)=>{const d=new Date(monday);d.setDate(monday.getDate()+i);return d});
+}
+function dayLabel(d){
+ const today=todayISO(), id=isoDate(d);
+ if(id===today) return 'Сегодня';
+ return new Intl.DateTimeFormat('ru-RU',{weekday:'short',day:'numeric',month:'short'}).format(d).replace('.','');
+}
+function dateOptions(selected){
+ return `<option value="">Выбрать день</option>`+weekDays().map(d=>`<option value="${isoDate(d)}" ${selected===isoDate(d)?'selected':''}>${dayLabel(d)}</option>`).join('');
+}
+
 function parentProgress(t){const subs=t.subtasks||[];if(!subs.length)return{done:0,total:0,pct:0};const done=subs.filter(s=>s.done).length;return{done,total:subs.length,pct:Math.round(done/subs.length*100)}}
 function syncParentDone(t){if(t.kind==='parent'&&(t.subtasks||[]).length)t.done=t.subtasks.every(s=>s.done)}
 
 function sphereTag(id){const s=sphere(id);return `<span class="tag">${s.icon} ${esc(s.label)}</span>`}
 
-function taskEl(t){
+function taskEl(t,context='today'){
  const d=document.createElement('div');d.className='task'+(t.done?' done':'')+(t.kind==='parent'?' parent-task':'');
  const prog=t.kind==='parent'?parentProgress(t):null;
  const progressHtml=prog?`<div class="parent-progress"><div class="row"><span>${prog.done}/${prog.total} выполнено</span><b>${prog.pct}%</b></div><div class="bar"><div style="width:${prog.pct}%"></div></div></div>`:'';
- d.innerHTML=`<input type="checkbox" ${t.done?'checked':''}><div class="copy"><div>${esc(t.text)}</div><div class="meta">${sphereTag(t.sphere)} ${linkedLabel(t)?`<span>${esc(linkedLabel(t))}</span>`:''}${t.kind==='parent'?`<span>· цель с подзадачами</span>`:''}</div>${progressHtml}</div>${t.kind==='parent'?'<button class="subs">Подзадачи</button>':''}<button class="del">×</button>`;
- d.querySelector('input').onchange=e=>{t.done=e.target.checked;if(t.kind==='parent'&&(t.subtasks||[]).length)t.subtasks.forEach(s=>s.done=t.done);save();render()};
- if(t.kind==='parent') d.querySelector('.subs').onclick=()=>openSubtasks(t.id);
+ let action='';
+ if(context==='week'){
+   action=t.kind==='parent'
+     ? '<button class="subs">Запланировать</button>'
+     : '<button class="make-parent">Разбить</button>';
+ }
+ d.innerHTML=`<input type="checkbox" ${t.done?'checked':''}><div class="copy"><div>${esc(t.text)}</div><div class="meta">${sphereTag(t.sphere)} ${linkedLabel(t)?`<span>${esc(linkedLabel(t))}</span>`:''}${t.kind==='parent'?`<span>· ${prog.done}/${prog.total}</span>`:''}</div>${progressHtml}</div>${action}<button class="del">×</button>`;
+ d.querySelector('input').onchange=e=>{
+   t.done=e.target.checked;
+   if(t.kind==='parent'&&(t.subtasks||[]).length)t.subtasks.forEach(s=>s.done=t.done);
+   save();render()
+ };
+ if(context==='week'&&t.kind==='parent') d.querySelector('.subs').onclick=()=>openSubtasks(t.id);
+ if(context==='week'&&t.kind!=='parent') d.querySelector('.make-parent').onclick=()=>{
+   t.kind='parent'; t.subtasks=t.subtasks||[]; t.done=false; save(); render(); openSubtasks(t.id);
+ };
  d.querySelector('.del').onclick=()=>{state.tasks=state.tasks.filter(x=>x.id!==t.id);save();render()};
  return d
 }
+
+function scheduledSubtaskEl(parent,sub){
+ const d=document.createElement('div');
+ d.className='task scheduled-subtask'+(sub.done?' done':'');
+ d.innerHTML=`<input type="checkbox" ${sub.done?'checked':''}><div class="copy"><div>${esc(sub.text)}</div><div class="meta">${sphereTag(parent.sphere)} <span>↳ из недели: ${esc(parent.text)}</span></div></div><button class="del" title="Убрать из дня">×</button>`;
+ d.querySelector('input').onchange=e=>{sub.done=e.target.checked;syncParentDone(parent);save();render()};
+ d.querySelector('.del').onclick=()=>{sub.date=null;save();render()};
+ return d;
+}
+
 function goalHtml(g,month=false){const icon=month?(state.yearGoals.find(x=>x.id===g.goal)?.icon||''):g.icon;return `<div class="goal"><div class="row"><b>${icon} ${esc(g.title)}</b><span>${g.progress}%</span></div>${month?'':`<p>${esc(g.desc)}</p>`}<div class="bar"><div style="width:${g.progress}%"></div></div></div>`}
 function filterHtml(scope){
  const active=filters[scope];
@@ -154,8 +195,23 @@ function renderRetro(){
  $('#retroStats').innerHTML=[['Задачи',done+'/'+all.length],['Здоровье',health+' выполнено'],['Желания',wishesDone+'/50'],['Шаги к желаниям',linkedDone]].map(x=>`<div class="retro-stat"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('');
  $('#retroWorked').value=state.retro?.worked||''; $('#retroDidnt').value=state.retro?.didnt||''; $('#retroWhy').value=state.retro?.why||''; $('#retroInsight').value=state.retro?.insight||''; $('#retroChange').value=state.retro?.change||'';
 }
-function openSubtasks(id){currentParentId=id;const t=state.tasks.find(x=>x.id===id);if(!t)return;$('#subtaskTitle').textContent=t.text;renderSubtasks();$('#subtaskDialog').showModal()}
-function renderSubtasks(){const t=state.tasks.find(x=>x.id===currentParentId);if(!t)return;$('#subtaskList').innerHTML=(t.subtasks||[]).map(s=>`<div class="subtask-row"><input type="checkbox" data-sub-check="${s.id}" ${s.done?'checked':''}><span class="${s.done?'done-text':''}">${esc(s.text)}</span><button data-sub-del="${s.id}">×</button></div>`).join('')||'<p class="empty">Добавь шаги — например, «Книга 1», «Книга 2» или «Тренировка 1».</p>';$$('[data-sub-check]').forEach(b=>b.onchange=()=>{const st=t.subtasks.find(s=>s.id===b.dataset.subCheck);st.done=b.checked;syncParentDone(t);save();renderSubtasks();render()});$$('[data-sub-del]').forEach(b=>b.onclick=()=>{t.subtasks=t.subtasks.filter(s=>s.id!==b.dataset.subDel);syncParentDone(t);save();renderSubtasks();render()})}
+function openSubtasks(id){currentParentId=id;const t=state.tasks.find(x=>x.id===id);if(!t)return;$('#subtaskTitle').textContent=t.text+' · разложить по дням';renderSubtasks();$('#subtaskDialog').showModal()}
+function renderSubtasks(){
+ const t=state.tasks.find(x=>x.id===currentParentId);if(!t)return;
+ const list=$('#subtaskList');
+ list.innerHTML=(t.subtasks||[]).map(s=>`
+   <div class="subtask-plan-row">
+     <input type="checkbox" data-sub-check="${s.id}" ${s.done?'checked':''}>
+     <div class="subtask-copy">
+       <span class="${s.done?'done-text':''}">${esc(s.text)}</span>
+       <select data-sub-date="${s.id}">${dateOptions(s.date)}</select>
+     </div>
+     <button data-sub-del="${s.id}">×</button>
+   </div>`).join('')||'<p class="empty">Добавь отдельные шаги. Например: «Зарядка 1», «Зарядка 2», «Зарядка 3», «Зарядка 4». Потом назначь каждому день.</p>';
+ $$('[data-sub-check]').forEach(b=>b.onchange=()=>{const st=t.subtasks.find(s=>s.id===b.dataset.subCheck);st.done=b.checked;syncParentDone(t);save();renderSubtasks();render()});
+ $$('[data-sub-date]').forEach(sel=>sel.onchange=()=>{const st=t.subtasks.find(s=>s.id===sel.dataset.subDate);st.date=sel.value||null;save();renderSubtasks();render();if(st.date===todayISO())toast('Добавлено в Сегодня')});
+ $$('[data-sub-del]').forEach(b=>b.onclick=()=>{t.subtasks=t.subtasks.filter(s=>s.id!==b.dataset.subDel);syncParentDone(t);save();renderSubtasks();render()});
+}
 
 function render(){
  const now=new Date();
@@ -167,14 +223,23 @@ function render(){
 
  const allToday=state.tasks.filter(t=>t.scope==='today');
  const filteredToday=allToday.filter(t=>filters.today==='all'||t.sphere===filters.today);
+ const scheduled=[];
+ state.tasks.filter(t=>t.scope==='week'&&t.kind==='parent').forEach(parent=>{
+   (parent.subtasks||[]).filter(s=>s.date===todayISO()).forEach(sub=>scheduled.push({parent,sub}));
+ });
+ const scheduledFiltered=scheduled.filter(x=>filters.today==='all'||x.parent.sphere===filters.today);
  const a=filteredToday.filter(t=>!t.done),d=filteredToday.filter(t=>t.done);
- $('#todayTasks').replaceChildren(...a.map(taskEl));$('#doneTasks').replaceChildren(...d.map(taskEl));
- $('#doneCount').textContent=allToday.filter(t=>t.done).length;
- $('#todayCount').textContent=allToday.filter(t=>t.done).length+'/'+allToday.length;
+ const sa=scheduledFiltered.filter(x=>!x.sub.done),sd=scheduledFiltered.filter(x=>x.sub.done);
+ $('#todayTasks').replaceChildren(...a.map(t=>taskEl(t,'today')),...sa.map(x=>scheduledSubtaskEl(x.parent,x.sub)));
+ $('#doneTasks').replaceChildren(...d.map(t=>taskEl(t,'today')),...sd.map(x=>scheduledSubtaskEl(x.parent,x.sub)));
+ const total=allToday.length+scheduled.length;
+ const doneTotal=allToday.filter(t=>t.done).length+scheduled.filter(x=>x.sub.done).length;
+ $('#doneCount').textContent=doneTotal;
+ $('#todayCount').textContent=doneTotal+'/'+total;
 
  $('#weekFocus').textContent=state.weekFocus;
  const w=state.tasks.filter(t=>t.scope==='week'&&(filters.week==='all'||t.sphere===filters.week));
- $('#weekTasks').replaceChildren(...w.map(taskEl));
+ $('#weekTasks').replaceChildren(...w.map(t=>taskEl(t,'week')));
 
  $('#monthGoals').innerHTML=state.monthGoals.map(g=>goalHtml(g,true)).join('');
  $('#monthWishes').innerHTML=state.wishes.filter(x=>x.month&&x.status!=='done').map(monthWishCard).join('')||'<p class="empty">Пока ни одно желание не выбрано на этот месяц.</p>';
@@ -211,7 +276,7 @@ $('#authForm').onsubmit=async e=>{e.preventDefault();$('#authMessage').textConte
 $('#signup').onclick=async()=>{$('#authMessage').textContent='Создаём аккаунт…';const {data,error}=await sb.auth.signUp({email:$('#email').value.trim(),password:$('#password').value});if(error){$('#authMessage').textContent=error.message;return}if(!data.session){$('#authMessage').textContent='Аккаунт создан. Подтверди email в письме, затем вернись сюда и нажми «Войти».';return}user=data.user;await loadState();$('#authGate').classList.add('hidden');$('#app').classList.remove('hidden');render()};
 
 $('#saveRetro').onclick=()=>{state.retro={worked:$('#retroWorked').value,didnt:$('#retroDidnt').value,why:$('#retroWhy').value,insight:$('#retroInsight').value,change:$('#retroChange').value};save();toast('Ретро сохранено')};
-$('#addSubtaskForm').onsubmit=e=>{e.preventDefault();const t=state.tasks.find(x=>x.id===currentParentId),text=$('#subtaskInput').value.trim();if(!t||!text)return;t.subtasks=t.subtasks||[];t.subtasks.push({id:uid(),text,done:false});$('#subtaskInput').value='';syncParentDone(t);save();renderSubtasks();render()};
+$('#addSubtaskForm').onsubmit=e=>{e.preventDefault();const t=state.tasks.find(x=>x.id===currentParentId),text=$('#subtaskInput').value.trim();if(!t||!text)return;t.subtasks=t.subtasks||[];t.subtasks.push({id:uid(),text,done:false,date:null});$('#subtaskInput').value='';syncParentDone(t);save();renderSubtasks();render()};
 $('#closeSubtasks').onclick=()=>$('#subtaskDialog').close();
 
 $('#logout').onclick=async()=>{await sb.auth.signOut();location.reload()};

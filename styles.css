@@ -17,3 +17,37 @@ nav{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(720px,
 @media(max-width:480px){.auth-card h1{font-size:30px}.head h2{font-size:32px}.add-rich select{font-size:12px}.wish-actions{padding-left:0}.section-row{align-items:center}}
 
 .retro-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}.retro-stat{background:var(--panel);border-radius:16px;padding:13px}.retro-stat b,.retro-stat span{display:block}.retro-stat b{font-size:18px}.retro-stat span{font-size:11px;color:var(--muted);margin-top:4px}.retro-card{border:1px solid var(--border);border-radius:20px;padding:15px}.retro-card label{display:block;font-size:12px;font-weight:700;margin-bottom:12px}.retro-card textarea{width:100%;min-height:70px;resize:vertical;margin-top:6px;padding:11px;border:1px solid var(--border);border-radius:13px;background:transparent;color:var(--text);font:inherit;font-weight:400}.parent-task{align-items:flex-start;padding:10px 0}.parent-progress{margin-top:8px}.parent-progress .row{font-size:10px;color:var(--muted)}.parent-progress .bar{height:5px;margin-top:5px}.subs{border:1px solid var(--border);background:transparent;border-radius:999px;padding:6px 8px;font-size:10px;margin-top:2px}.subtask-row{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--border)}.subtask-row input{width:20px;height:20px;accent-color:var(--button)}.subtask-row span{flex:1}.subtask-row button{border:0;background:transparent;color:var(--muted);font-size:18px}.done-text{text-decoration:line-through;color:var(--muted)}
+
+.make-parent,.subs{
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:11px;
+  white-space:nowrap;
+  margin-top:2px;
+}
+.subtask-plan-row{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:11px 0;
+  border-bottom:1px solid var(--border);
+}
+.subtask-plan-row>input{width:20px;height:20px;accent-color:var(--button);margin-top:8px}
+.subtask-copy{flex:1;min-width:0}
+.subtask-copy>span{display:block;margin-bottom:7px}
+.subtask-copy select{
+  width:100%;
+  border:1px solid var(--border);
+  background:var(--bg);
+  border-radius:11px;
+  padding:8px 9px;
+  font-size:12px;
+}
+.subtask-plan-row>button{border:0;background:transparent;color:var(--muted);font-size:18px;padding:4px}
+.scheduled-subtask{background:color-mix(in srgb,var(--panel) 55%,transparent);padding-left:8px;padding-right:8px;border-radius:14px;margin-bottom:5px}
+@media(max-width:520px){
+  .task{gap:8px}
+  .make-parent,.subs{padding:6px 8px;font-size:10px}
+}
