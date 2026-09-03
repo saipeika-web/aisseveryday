@@ -44,7 +44,8 @@ const seed={
  ]
 };
 
-let state=structuredClone(seed),user=null,saveTimer;
+seed.retro={worked:'',didnt:'',why:'',insight:'',change:''};
+let state=structuredClone(seed),user=null,saveTimer,currentParentId=null;
 let filters={today:'all',week:'all'};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -57,8 +58,9 @@ function normalizeState(raw){
  merged.tasks=(raw?.tasks||seed.tasks).map(t=>{
    let sphere=t.sphere;
    if(!sphere) sphere=t.goal==='sport'?'health':t.goal==='work'?'work':t.goal==='life'?'impressions':'personal';
-   return {...t,sphere,linkType:t.linkType||(t.goal?'goal':null),linkId:t.linkId||(t.goal||null)};
+   return {...t,sphere,linkType:t.linkType||(t.goal?'goal':null),linkId:t.linkId||(t.goal||null),kind:t.kind||'single',subtasks:(t.subtasks||[]).map(st=>({...st,id:st.id||uid()}))};
  });
+ merged.retro={worked:'',didnt:'',why:'',insight:'',change:'',...(raw?.retro||{})};
  merged.wishes=(raw?.wishes||seed.wishes).map(w=>({
    ...w,
    status:w.status||(w.done?'done':w.month?'planned':'want'),
@@ -89,12 +91,19 @@ function linkedLabel(t){
  if(t.linkType==='wish') return '→ ✦ '+wishName(t.linkId);
  return '';
 }
+
+function parentProgress(t){const subs=t.subtasks||[];if(!subs.length)return{done:0,total:0,pct:0};const done=subs.filter(s=>s.done).length;return{done,total:subs.length,pct:Math.round(done/subs.length*100)}}
+function syncParentDone(t){if(t.kind==='parent'&&(t.subtasks||[]).length)t.done=t.subtasks.every(s=>s.done)}
+
 function sphereTag(id){const s=sphere(id);return `<span class="tag">${s.icon} ${esc(s.label)}</span>`}
 
 function taskEl(t){
- const d=document.createElement('div');d.className='task'+(t.done?' done':'');
- d.innerHTML=`<input type="checkbox" ${t.done?'checked':''}><div class="copy"><div>${esc(t.text)}</div><div class="meta">${sphereTag(t.sphere)} ${linkedLabel(t)?`<span>${esc(linkedLabel(t))}</span>`:''}</div></div><button class="del">×</button>`;
- d.querySelector('input').onchange=e=>{t.done=e.target.checked;save();render()};
+ const d=document.createElement('div');d.className='task'+(t.done?' done':'')+(t.kind==='parent'?' parent-task':'');
+ const prog=t.kind==='parent'?parentProgress(t):null;
+ const progressHtml=prog?`<div class="parent-progress"><div class="row"><span>${prog.done}/${prog.total} выполнено</span><b>${prog.pct}%</b></div><div class="bar"><div style="width:${prog.pct}%"></div></div></div>`:'';
+ d.innerHTML=`<input type="checkbox" ${t.done?'checked':''}><div class="copy"><div>${esc(t.text)}</div><div class="meta">${sphereTag(t.sphere)} ${linkedLabel(t)?`<span>${esc(linkedLabel(t))}</span>`:''}${t.kind==='parent'?`<span>· цель с подзадачами</span>`:''}</div>${progressHtml}</div>${t.kind==='parent'?'<button class="subs">Подзадачи</button>':''}<button class="del">×</button>`;
+ d.querySelector('input').onchange=e=>{t.done=e.target.checked;if(t.kind==='parent'&&(t.subtasks||[]).length)t.subtasks.forEach(s=>s.done=t.done);save();render()};
+ if(t.kind==='parent') d.querySelector('.subs').onclick=()=>openSubtasks(t.id);
  d.querySelector('.del').onclick=()=>{state.tasks=state.tasks.filter(x=>x.id!==t.id);save();render()};
  return d
 }
@@ -120,7 +129,7 @@ function wishCard(w){
  const status=w.status==='done'?'Исполнено':w.month?'В этом месяце':w.status==='active'?'В процессе':'Хочу';
  return `<div class="wish-card ${w.status==='done'?'done':''}">
    <div class="wish-main"><button class="wish-check" data-wish-done="${w.id}">${w.status==='done'?'✓':'○'}</button><div><b>${esc(w.title)}</b><div class="meta">${sphereTag(w.sphere)} <span>${status}</span>${linked.length?` <span>· задач ${done}/${linked.length}</span>`:''}</div></div></div>
-   <div class="wish-actions"><button data-wish-month="${w.id}">${w.month?'Убрать из месяца':'В месяц'}</button><button data-wish-task="${w.id}">+ задача</button></div>
+   <div class="wish-actions"><button data-wish-month="${w.id}">${w.month?'Убрать из месяца':'В месяц'}</button><button data-wish-task="${w.id}">+ задача</button><button data-wish-parent="${w.id}">Создать прогресс</button></div>
  </div>`;
 }
 function monthWishCard(w){
@@ -131,13 +140,23 @@ function monthWishCard(w){
 function bindWishActions(){
  $$('[data-wish-done]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishDone);w.status=w.status==='done'?'want':'done';save();render()});
  $$('[data-wish-month]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishMonth);w.month=!w.month;if(w.month&&w.status==='want')w.status='planned';save();render()});
- $$('[data-wish-task]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishTask);state.tasks.push({id:uid(),text:'Шаг к «'+w.title+'»',done:false,scope:'today',sphere:w.sphere,linkType:'wish',linkId:w.id});save();render();toast('Задача добавлена на сегодня')});
+ $$('[data-wish-task]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishTask);state.tasks.push({id:uid(),text:'Шаг к «'+w.title+'»',done:false,scope:'today',sphere:w.sphere,linkType:'wish',linkId:w.id,kind:'single',subtasks:[]});save();render();toast('Задача добавлена на сегодня')});
+ $$('[data-wish-parent]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishParent);const t={id:uid(),text:w.title,done:false,scope:'week',sphere:w.sphere,linkType:'wish',linkId:w.id,kind:'parent',subtasks:[]};state.tasks.push(t);save();render();openSubtasks(t.id)});
 }
 function renderSphereSummary(){
  const counts=SPHERES.map(s=>({s,total:state.tasks.filter(t=>t.sphere===s.id).length,done:state.tasks.filter(t=>t.sphere===s.id&&t.done).length}));
  const max=Math.max(1,...counts.map(x=>x.total));
  $('#sphereSummary').innerHTML=counts.map(x=>`<div class="sphere-row"><div class="row"><span>${x.s.icon} ${x.s.label}</span><span>${x.done}/${x.total}</span></div><div class="bar"><div style="width:${(x.total/max)*100}%"></div></div></div>`).join('');
 }
+
+function renderRetro(){
+ const all=state.tasks,done=all.filter(t=>t.done).length,health=all.filter(t=>t.sphere==='health'&&t.done).length,wishesDone=state.wishes.filter(w=>w.status==='done').length,linkedDone=all.filter(t=>t.done&&t.linkType==='wish').length;
+ $('#retroStats').innerHTML=[['Задачи',done+'/'+all.length],['Здоровье',health+' выполнено'],['Желания',wishesDone+'/50'],['Шаги к желаниям',linkedDone]].map(x=>`<div class="retro-stat"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('');
+ $('#retroWorked').value=state.retro?.worked||''; $('#retroDidnt').value=state.retro?.didnt||''; $('#retroWhy').value=state.retro?.why||''; $('#retroInsight').value=state.retro?.insight||''; $('#retroChange').value=state.retro?.change||'';
+}
+function openSubtasks(id){currentParentId=id;const t=state.tasks.find(x=>x.id===id);if(!t)return;$('#subtaskTitle').textContent=t.text;renderSubtasks();$('#subtaskDialog').showModal()}
+function renderSubtasks(){const t=state.tasks.find(x=>x.id===currentParentId);if(!t)return;$('#subtaskList').innerHTML=(t.subtasks||[]).map(s=>`<div class="subtask-row"><input type="checkbox" data-sub-check="${s.id}" ${s.done?'checked':''}><span class="${s.done?'done-text':''}">${esc(s.text)}</span><button data-sub-del="${s.id}">×</button></div>`).join('')||'<p class="empty">Добавь шаги — например, «Книга 1», «Книга 2» или «Тренировка 1».</p>';$$('[data-sub-check]').forEach(b=>b.onchange=()=>{const st=t.subtasks.find(s=>s.id===b.dataset.subCheck);st.done=b.checked;syncParentDone(t);save();renderSubtasks();render()});$$('[data-sub-del]').forEach(b=>b.onclick=()=>{t.subtasks=t.subtasks.filter(s=>s.id!==b.dataset.subDel);syncParentDone(t);save();renderSubtasks();render()})}
+
 function render(){
  const now=new Date();
  $('#dateLabel').textContent=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(now).toUpperCase();
@@ -166,18 +185,19 @@ function render(){
  $('#wishProgress').style.width=Math.min(100,(wc/50)*100)+'%';
  $('#wishList').innerHTML=state.wishes.map(wishCard).join('');
  renderSphereSummary();
+ renderRetro();
  bindWishActions();
 }
-function addTask(scope,inputId,sphereId,linkId){
+function addTask(scope,inputId,sphereId,linkId,kindId){
  const x=$('#'+inputId),text=x.value.trim();if(!text)return;
  const link=$('#'+linkId).value;let linkType=null,linkedId=null;
  if(link){[linkType,linkedId]=link.split(':')}
- state.tasks.push({id:uid(),text,done:false,scope,sphere:$('#'+sphereId).value,linkType,linkId:linkedId});
+ const kind=$('#'+kindId).value; state.tasks.push({id:uid(),text,done:false,scope,sphere:$('#'+sphereId).value,linkType,linkId:linkedId,kind,subtasks:[]});
  x.value='';save();render();
 }
 $$('nav button').forEach(b=>b.onclick=()=>{$$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===b.dataset.target));$$('nav button').forEach(x=>x.classList.toggle('active',x===b))});
-$('#addTask').onsubmit=e=>{e.preventDefault();addTask('today','taskInput','taskSphere','taskLink')};
-$('#addWeekTask').onsubmit=e=>{e.preventDefault();addTask('week','weekTaskInput','weekTaskSphere','weekTaskLink')};
+$('#addTask').onsubmit=e=>{e.preventDefault();addTask('today','taskInput','taskSphere','taskLink','taskKind')};
+$('#addWeekTask').onsubmit=e=>{e.preventDefault();addTask('week','weekTaskInput','weekTaskSphere','weekTaskLink','weekTaskKind')};
 
 $('#addWishBtn').onclick=()=>{$('#wishSphere').innerHTML=SPHERES.map(s=>`<option value="${s.id}">${s.icon} ${s.label}</option>`).join('');$('#wishDialog').showModal()};
 $('#wishForm').onsubmit=e=>{
@@ -189,6 +209,11 @@ $('#wishForm').onsubmit=e=>{
 
 $('#authForm').onsubmit=async e=>{e.preventDefault();$('#authMessage').textContent='Входим…';const {data,error}=await sb.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});if(error){$('#authMessage').textContent=error.message;return}user=data.user;try{await loadState();$('#authGate').classList.add('hidden');$('#app').classList.remove('hidden');render()}catch(err){$('#authMessage').textContent='Вход выполнен, но данные не загрузились: '+err.message}};
 $('#signup').onclick=async()=>{$('#authMessage').textContent='Создаём аккаунт…';const {data,error}=await sb.auth.signUp({email:$('#email').value.trim(),password:$('#password').value});if(error){$('#authMessage').textContent=error.message;return}if(!data.session){$('#authMessage').textContent='Аккаунт создан. Подтверди email в письме, затем вернись сюда и нажми «Войти».';return}user=data.user;await loadState();$('#authGate').classList.add('hidden');$('#app').classList.remove('hidden');render()};
+
+$('#saveRetro').onclick=()=>{state.retro={worked:$('#retroWorked').value,didnt:$('#retroDidnt').value,why:$('#retroWhy').value,insight:$('#retroInsight').value,change:$('#retroChange').value};save();toast('Ретро сохранено')};
+$('#addSubtaskForm').onsubmit=e=>{e.preventDefault();const t=state.tasks.find(x=>x.id===currentParentId),text=$('#subtaskInput').value.trim();if(!t||!text)return;t.subtasks=t.subtasks||[];t.subtasks.push({id:uid(),text,done:false});$('#subtaskInput').value='';syncParentDone(t);save();renderSubtasks();render()};
+$('#closeSubtasks').onclick=()=>$('#subtaskDialog').close();
+
 $('#logout').onclick=async()=>{await sb.auth.signOut();location.reload()};
 (async()=>{const {data:{session}}=await sb.auth.getSession();if(session?.user){user=session.user;try{await loadState();$('#authGate').classList.add('hidden');$('#app').classList.remove('hidden');render()}catch(e){$('#authMessage').textContent='Не удалось загрузить данные из Supabase: '+e.message}}})();
 })();

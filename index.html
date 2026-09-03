@@ -40,6 +40,7 @@
           <input id="taskInput" placeholder="Добавить задачу…" required>
           <select id="taskSphere"></select>
           <select id="taskLink"></select>
+          <select id="taskKind"><option value="single">Обычная задача</option><option value="parent">Цель с подзадачами</option></select>
           <button>+</button>
         </form>
         <details><summary>Выполнено · <span id="doneCount">0</span></summary><div id="doneTasks"></div></details>
@@ -54,6 +55,7 @@
           <input id="weekTaskInput" placeholder="Добавить задачу на неделю…" required>
           <select id="weekTaskSphere"></select>
           <select id="weekTaskLink"></select>
+          <select id="weekTaskKind"><option value="single">Обычная задача</option><option value="parent">Цель с подзадачами</option></select>
           <button>+</button>
         </form>
       </section>
@@ -64,6 +66,18 @@
         <h3 class="section-title">Желания месяца</h3>
         <p class="hint">Желания, которые ты решила приблизить именно сейчас.</p>
         <div id="monthWishes"></div>
+
+        <h3 class="section-title">Ретро месяца</h3>
+        <p class="hint">Цифры собираются автоматически, смысл добавляешь ты.</p>
+        <div class="retro-stats" id="retroStats"></div>
+        <div class="retro-card">
+          <label>Что получилось<textarea id="retroWorked" placeholder="Что сработало лучше всего?"></textarea></label>
+          <label>Что не получилось<textarea id="retroDidnt" placeholder="Где всё развалилось или не пошло?"></textarea></label>
+          <label>Почему<textarea id="retroWhy" placeholder="Что повлияло?"></textarea></label>
+          <label>Главный вывод<textarea id="retroInsight" placeholder="Что я поняла про себя и этот месяц?"></textarea></label>
+          <label>Что меняю в следующем месяце<textarea id="retroChange" placeholder="Одно-два изменения на следующий месяц"></textarea></label>
+          <button class="primary" type="button" id="saveRetro">Сохранить ретро</button>
+        </div>
       </section>
 
       <section class="screen" data-screen="year">
@@ -108,6 +122,16 @@
     </form>
   </dialog>
 
+
+  <dialog id="subtaskDialog">
+    <div class="dialog-card">
+      <div class="eyebrow">ПОДЗАДАЧИ</div>
+      <h3 id="subtaskTitle">Прогресс</h3>
+      <div id="subtaskList"></div>
+      <form id="addSubtaskForm" class="add"><input id="subtaskInput" placeholder="Новая подзадача…" required><button>+</button></form>
+      <button id="closeSubtasks" class="secondary">Готово</button>
+    </div>
+  </dialog>
   <script src="./app.js"></script>
 </body>
 </html>
