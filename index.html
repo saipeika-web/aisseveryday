@@ -27,36 +27,62 @@
   <div id="app" class="app hidden">
     <header>
       <div><div class="eyebrow" id="dateLabel"></div><h1>Мой навигатор</h1></div>
-      <button id="logout" class="icon">⋯</button>
+      <button id="logout" class="icon">Выйти</button>
     </header>
 
     <main>
       <section class="screen active" data-screen="today">
         <div class="head"><div><div class="eyebrow">СЕГОДНЯ</div><h2>Сегодня</h2></div><span id="todayCount"></span></div>
+        <div class="filters" id="todayFilters"></div>
         <div class="streak">🔥 <div><b>Ударный режим</b><small>Держим ритм без перегруза.</small></div></div>
         <div id="todayTasks"></div>
-        <form id="addTask" class="add"><input id="taskInput" placeholder="Добавить задачу…"><button>+</button></form>
+        <form id="addTask" class="add add-rich">
+          <input id="taskInput" placeholder="Добавить задачу…" required>
+          <select id="taskSphere"></select>
+          <select id="taskLink"></select>
+          <button>+</button>
+        </form>
         <details><summary>Выполнено · <span id="doneCount">0</span></summary><div id="doneTasks"></div></details>
       </section>
 
       <section class="screen" data-screen="week">
         <div class="head"><div><div class="eyebrow">ЭТА НЕДЕЛЯ</div><h2>Неделя</h2></div></div>
         <div class="card"><div class="eyebrow">ГЛАВНЫЙ ФОКУС</div><h3 id="weekFocus"></h3></div>
+        <div class="filters" id="weekFilters"></div>
         <div id="weekTasks"></div>
+        <form id="addWeekTask" class="add add-rich">
+          <input id="weekTaskInput" placeholder="Добавить задачу на неделю…" required>
+          <select id="weekTaskSphere"></select>
+          <select id="weekTaskLink"></select>
+          <button>+</button>
+        </form>
       </section>
 
       <section class="screen" data-screen="month">
         <div class="head"><div><div class="eyebrow" id="monthLabel"></div><h2>Месяц</h2></div></div>
         <div id="monthGoals"></div>
         <h3 class="section-title">Желания месяца</h3>
+        <p class="hint">Желания, которые ты решила приблизить именно сейчас.</p>
         <div id="monthWishes"></div>
       </section>
 
       <section class="screen" data-screen="year">
         <div class="head"><div><div class="eyebrow" id="yearLabel"></div><h2>Мой год</h2></div></div>
         <div id="yearGoals"></div>
-        <h3 class="section-title">50 желаний · <span id="wishCount"></span></h3>
-        <div id="wishDots" class="dots"></div>
+
+        <div class="section-row">
+          <div>
+            <h3 class="section-title compact">50 желаний · <span id="wishCount"></span></h3>
+            <p class="hint">Желание → месяц → конкретная задача.</p>
+          </div>
+          <button id="addWishBtn" class="mini">+ желание</button>
+        </div>
+        <div class="wish-progress"><div id="wishProgress"></div></div>
+        <div id="wishList"></div>
+
+        <h3 class="section-title">Баланс сфер</h3>
+        <p class="hint">По задачам, которые уже есть в планере.</p>
+        <div id="sphereSummary"></div>
       </section>
     </main>
 
@@ -68,6 +94,19 @@
     </nav>
     <div id="toast" class="toast hidden"></div>
   </div>
+
+  <dialog id="wishDialog">
+    <form method="dialog" id="wishForm" class="dialog-card">
+      <div class="eyebrow">50 ЖЕЛАНИЙ</div>
+      <h3>Новое желание</h3>
+      <input id="wishTitle" placeholder="Например: увидеть северное сияние" required>
+      <select id="wishSphere"></select>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary">Отмена</button>
+        <button value="default" id="saveWish" class="primary">Добавить</button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="./app.js"></script>
 </body>
