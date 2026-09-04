@@ -74,10 +74,21 @@ function normalizeState(raw){
 async function loadState(){
  const {data,error}=await sb.from('planner_state').select('data').eq('user_id',user.id).maybeSingle();
  if(error)throw error;
- if(data?.data&&Object.keys(data.data).length) state=normalizeState(data.data);
- else {
+ if(data?.data&&Object.keys(data.data).length){
+   try{
+     localStorage.setItem('aisseveryday_supabase_backup_latest',JSON.stringify({
+       savedAt:new Date().toISOString(),
+       data:data.data
+     }));
+   }catch(_){}
+   state=normalizeState(data.data);
+ } else {
    state=normalizeState(seed);
-   await sb.from('planner_state').upsert({user_id:user.id,data:state,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+   const {error:seedError}=await sb.from('planner_state').upsert(
+     {user_id:user.id,data:state,updated_at:new Date().toISOString()},
+     {onConflict:'user_id'}
+   );
+   if(seedError)throw seedError;
  }
 }
 function save(){clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{
@@ -155,6 +166,13 @@ function goalHtml(g,month=false){
  const icon=month?(state.yearGoals.find(x=>x.id===g.goal)?.icon||''):g.icon,id=month?g.goal:g.id,level=month?'month':'year';
  return `<div class="goal dopamine-card"><div class="row"><b>${icon} ${esc(g.title)}</b><span class="progress-number">${g.progress}%</span></div>${month?'':`<p>${esc(g.desc)}</p>`}<div class="bar"><div style="width:${g.progress}%"></div></div><button class="decompose-btn" data-decompose-level="${level}" data-decompose-id="${id}">＋ Разбить дальше</button></div>`
 }
+function filterHtml(scope){
+ const active=filters[scope];
+ return [{id:'all',label:'Все',icon:''},...SPHERES]
+   .map(s=>`<button class="filter ${active===s.id?'active':''}" data-filter="${s.id}" data-scope="${scope}">${s.icon||''} ${s.label}</button>`)
+   .join('');
+}
+
 function renderFilters(){
  $('#todayFilters').innerHTML=filterHtml('today');
  $('#weekFilters').innerHTML=filterHtml('week');
