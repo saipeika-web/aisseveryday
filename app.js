@@ -61,6 +61,8 @@ function normalizeState(raw){
    return {...t,sphere,linkType:t.linkType||(t.goal?'goal':null),linkId:t.linkId||(t.goal||null),kind:t.kind||'single',subtasks:(t.subtasks||[]).map(st=>({...st,id:st.id||uid(),date:st.date||null}))};
  });
  merged.retro={worked:'',didnt:'',why:'',insight:'',change:'',...(raw?.retro||{})};
+ merged.monthThoughts={work:'',sport:'',life:'',...(raw?.monthThoughts||{})};
+ merged.monthPlans=(raw?.monthPlans||[]).map(p=>({...p,id:p.id||uid(),done:!!p.done}));
  merged.wishes=(raw?.wishes||seed.wishes).map(w=>({
    ...w,
    status:w.status||(w.done?'done':w.month?'planned':'want'),
@@ -83,6 +85,7 @@ function save(){clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{
  if(error) toast('Ошибка синхронизации');
 },250)}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.remove('hidden');setTimeout(()=>e.classList.add('hidden'),1600)}
+function celebrate(){const c=$('#celebration');if(!c)return;c.classList.remove('hidden','play');void c.offsetWidth;c.classList.add('play');setTimeout(()=>c.classList.add('hidden'),1100)}
 function sphere(id){return SPHERES.find(x=>x.id===id)||SPHERES[6]}
 function goalName(id){const g=state.yearGoals.find(x=>x.id===id);return g?g.icon+' '+g.title:''}
 function wishName(id){return state.wishes.find(x=>x.id===id)?.title||''}
@@ -129,7 +132,7 @@ function taskEl(t,context='today'){
  d.querySelector('input').onchange=e=>{
    t.done=e.target.checked;
    if(t.kind==='parent'&&(t.subtasks||[]).length)t.subtasks.forEach(s=>s.done=t.done);
-   save();render()
+   if(t.done)celebrate();save();setTimeout(render,t.done?650:0)
  };
  if(context==='week'&&t.kind==='parent') d.querySelector('.subs').onclick=()=>openSubtasks(t.id);
  if(context==='week'&&t.kind!=='parent') d.querySelector('.make-parent').onclick=()=>{
@@ -143,15 +146,14 @@ function scheduledSubtaskEl(parent,sub){
  const d=document.createElement('div');
  d.className='task scheduled-subtask'+(sub.done?' done':'');
  d.innerHTML=`<input type="checkbox" ${sub.done?'checked':''}><div class="copy"><div>${esc(sub.text)}</div><div class="meta">${sphereTag(parent.sphere)} <span>↳ из недели: ${esc(parent.text)}</span></div></div><button class="del" title="Убрать из дня">×</button>`;
- d.querySelector('input').onchange=e=>{sub.done=e.target.checked;syncParentDone(parent);save();render()};
+ d.querySelector('input').onchange=e=>{sub.done=e.target.checked;syncParentDone(parent);if(sub.done)celebrate();save();setTimeout(render,sub.done?650:0)};
  d.querySelector('.del').onclick=()=>{sub.date=null;save();render()};
  return d;
 }
 
-function goalHtml(g,month=false){const icon=month?(state.yearGoals.find(x=>x.id===g.goal)?.icon||''):g.icon;return `<div class="goal"><div class="row"><b>${icon} ${esc(g.title)}</b><span>${g.progress}%</span></div>${month?'':`<p>${esc(g.desc)}</p>`}<div class="bar"><div style="width:${g.progress}%"></div></div></div>`}
-function filterHtml(scope){
- const active=filters[scope];
- return [{id:'all',label:'Все',icon:''},...SPHERES].map(s=>`<button class="filter ${active===s.id?'active':''}" data-filter="${s.id}" data-scope="${scope}">${s.icon||''} ${s.label}</button>`).join('');
+function goalHtml(g,month=false){
+ const icon=month?(state.yearGoals.find(x=>x.id===g.goal)?.icon||''):g.icon,id=month?g.goal:g.id,level=month?'month':'year';
+ return `<div class="goal dopamine-card"><div class="row"><b>${icon} ${esc(g.title)}</b><span class="progress-number">${g.progress}%</span></div>${month?'':`<p>${esc(g.desc)}</p>`}<div class="bar"><div style="width:${g.progress}%"></div></div><button class="decompose-btn" data-decompose-level="${level}" data-decompose-id="${id}">＋ Разбить дальше</button></div>`
 }
 function renderFilters(){
  $('#todayFilters').innerHTML=filterHtml('today');
@@ -165,21 +167,17 @@ function taskOptions(){
  ['taskLink','weekTaskLink'].forEach(id=>{$('#'+id).innerHTML=linkOpts});
 }
 function wishCard(w){
- const linked=state.tasks.filter(t=>t.linkType==='wish'&&t.linkId===w.id);
- const done=linked.filter(t=>t.done).length;
- const status=w.status==='done'?'Исполнено':w.month?'В этом месяце':w.status==='active'?'В процессе':'Хочу';
- return `<div class="wish-card ${w.status==='done'?'done':''}">
-   <div class="wish-main"><button class="wish-check" data-wish-done="${w.id}">${w.status==='done'?'✓':'○'}</button><div><b>${esc(w.title)}</b><div class="meta">${sphereTag(w.sphere)} <span>${status}</span>${linked.length?` <span>· задач ${done}/${linked.length}</span>`:''}</div></div></div>
-   <div class="wish-actions"><button data-wish-month="${w.id}">${w.month?'Убрать из месяца':'В месяц'}</button><button data-wish-task="${w.id}">+ задача</button><button data-wish-parent="${w.id}">Создать прогресс</button></div>
- </div>`;
+ const linked=state.tasks.filter(t=>t.linkType==='wish'&&t.linkId===w.id),done=linked.filter(t=>t.done).length;
+ return `<div class="wish-card dopamine-card"><div class="wish-main"><button class="wish-check" data-wish-done="${w.id}">○</button><div><b>${esc(w.title)}</b><div class="meta">${sphereTag(w.sphere)} <span>${w.month?'В этом месяце':'Хочу'}</span>${linked.length?` <span>· задач ${done}/${linked.length}</span>`:''}</div></div></div><div class="wish-actions"><button data-wish-month="${w.id}">${w.month?'Убрать из месяца':'В месяц'}</button><button data-decompose-level="wish" data-decompose-id="${w.id}">＋ Разбить дальше</button></div></div>`;
 }
+function completedWishCard(w){return `<div class="wish-card done completed-card"><div class="wish-main"><button class="wish-check" data-wish-done="${w.id}">✓</button><div><b>${esc(w.title)}</b><div class="meta">${sphereTag(w.sphere)} <span>Исполнено</span></div></div></div></div>`;}
 function monthWishCard(w){
  const linked=state.tasks.filter(t=>t.linkType==='wish'&&t.linkId===w.id);
  const done=linked.filter(t=>t.done).length;
  return `<div class="wish month-wish"><div><b>${esc(w.title)}</b><div class="meta">${sphereTag(w.sphere)} ${linked.length?`<span>задач ${done}/${linked.length}</span>`:'<span>ещё нет задач</span>'}</div></div><button data-wish-task="${w.id}">+ задача</button></div>`;
 }
 function bindWishActions(){
- $$('[data-wish-done]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishDone);w.status=w.status==='done'?'want':'done';save();render()});
+ $$('[data-wish-done]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishDone);w.status=w.status==='done'?'want':'done';if(w.status==='done')celebrate();save();setTimeout(render,w.status==='done'?650:0)});
  $$('[data-wish-month]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishMonth);w.month=!w.month;if(w.month&&w.status==='want')w.status='planned';save();render()});
  $$('[data-wish-task]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishTask);state.tasks.push({id:uid(),text:'Шаг к «'+w.title+'»',done:false,scope:'today',sphere:w.sphere,linkType:'wish',linkId:w.id,kind:'single',subtasks:[]});save();render();toast('Задача добавлена на сегодня')});
  $$('[data-wish-parent]').forEach(b=>b.onclick=()=>{const w=state.wishes.find(x=>x.id===b.dataset.wishParent);const t={id:uid(),text:w.title,done:false,scope:'week',sphere:w.sphere,linkType:'wish',linkId:w.id,kind:'parent',subtasks:[]};state.tasks.push(t);save();render();openSubtasks(t.id)});
@@ -190,6 +188,27 @@ function renderSphereSummary(){
  $('#sphereSummary').innerHTML=counts.map(x=>`<div class="sphere-row"><div class="row"><span>${x.s.icon} ${x.s.label}</span><span>${x.done}/${x.total}</span></div><div class="bar"><div style="width:${(x.total/max)*100}%"></div></div></div>`).join('');
 }
 
+
+function monthPlanHtml(p){
+ const parent=p.parentType==='wish'?'✦ '+wishName(p.parentId):p.parentType==='goal'?goalName(p.parentId):'';
+ return `<div class="month-plan dopamine-card ${p.done?'done':''}"><label class="plan-check"><input type="checkbox" data-month-plan-check="${p.id}" ${p.done?'checked':''}><span><b>${esc(p.text)}</b><small>${parent?`↳ ${esc(parent)}`:''}</small></span></label><button class="decompose-btn" data-decompose-level="monthPlan" data-decompose-id="${p.id}">＋ Разбить на неделю</button></div>`;
+}
+function renderMonthThoughts(){
+ const defs=[['work','💼 Работа и доход'],['sport','🏃 Форма и здоровье'],['life','✨ Жизнь и впечатления']];
+ $('#monthThoughts').innerHTML=defs.map(([id,label])=>`<div class="thought-card"><b>${label}</b><textarea data-thought="${id}" placeholder="Мысли, идеи, намерения…">${esc(state.monthThoughts[id]||'')}</textarea></div>`).join('');
+ $$('[data-thought]').forEach(t=>t.onchange=()=>{state.monthThoughts[t.dataset.thought]=t.value;save()});
+}
+function bindMonthPlans(){$$('[data-month-plan-check]').forEach(c=>c.onchange=()=>{const p=state.monthPlans.find(x=>x.id===c.dataset.monthPlanCheck);p.done=c.checked;if(p.done)celebrate();save();setTimeout(render,p.done?650:0)})}
+let decomposeCtx=null;
+function openDecompose(level,id){
+ decomposeCtx={level,id};let title='',hint='',ph='';
+ if(level==='year'){const g=state.yearGoals.find(x=>x.id===id);title=g?.title||'Цель года';hint='Добавим часть этой цели в текущий месяц.';ph='Например: прочитать 4 книги в сентябре'}
+ if(level==='wish'){const w=state.wishes.find(x=>x.id===id);title=w?.title||'Желание';hint='Добавим конкретный план на этот месяц.';ph='Например: прочитать 4 книги в сентябре'}
+ if(level==='month'){const g=state.monthGoals.find(x=>x.goal===id);title=g?.title||'Цель месяца';hint='Добавим конкретную задачу на эту неделю.';ph='Например: сделать 4 тренировки'}
+ if(level==='monthPlan'){const p=state.monthPlans.find(x=>x.id===id);title=p?.text||'План месяца';hint='Добавим конкретную задачу на эту неделю.';ph='Например: дочитать одну книгу'}
+ $('#decomposeTitle').textContent=title;$('#decomposeHint').textContent=hint;$('#decomposeText').placeholder=ph;$('#decomposeText').value='';$('#decomposeDialog').showModal()
+}
+function bindDecompose(){$$('[data-decompose-level]').forEach(b=>b.onclick=()=>openDecompose(b.dataset.decomposeLevel,b.dataset.decomposeId))}
 function renderRetro(){
  const all=state.tasks,done=all.filter(t=>t.done).length,health=all.filter(t=>t.sphere==='health'&&t.done).length,wishesDone=state.wishes.filter(w=>w.status==='done').length,linkedDone=all.filter(t=>t.done&&t.linkType==='wish').length;
  $('#retroStats').innerHTML=[['Задачи',done+'/'+all.length],['Здоровье',health+' выполнено'],['Желания',wishesDone+'/50'],['Шаги к желаниям',linkedDone]].map(x=>`<div class="retro-stat"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('');
@@ -242,16 +261,22 @@ function render(){
  $('#weekTasks').replaceChildren(...w.map(t=>taskEl(t,'week')));
 
  $('#monthGoals').innerHTML=state.monthGoals.map(g=>goalHtml(g,true)).join('');
+ renderMonthThoughts();
+ $('#monthPlans').innerHTML=state.monthPlans.map(monthPlanHtml).join('')||'<p class="empty">Пока пусто. Нажми «Разбить дальше» у цели года или желания.</p>';
  $('#monthWishes').innerHTML=state.wishes.filter(x=>x.month&&x.status!=='done').map(monthWishCard).join('')||'<p class="empty">Пока ни одно желание не выбрано на этот месяц.</p>';
 
  $('#yearGoals').innerHTML=state.yearGoals.map(g=>goalHtml(g,false)).join('');
- const wc=state.wishes.filter(x=>x.status==='done').length;
- $('#wishCount').textContent=wc+'/50';
- $('#wishProgress').style.width=Math.min(100,(wc/50)*100)+'%';
- $('#wishList').innerHTML=state.wishes.map(wishCard).join('');
+ const completed=state.wishes.filter(x=>x.status==='done'),activeWishes=state.wishes.filter(x=>x.status!=='done');
+ $('#wishCount').textContent=state.wishes.length+' всего · '+completed.length+' исполнено';
+ $('#wishProgress').style.width=(state.wishes.length?Math.round(completed.length/state.wishes.length*100):0)+'%';
+ $('#wishList').innerHTML=activeWishes.map(wishCard).join('')||'<p class="empty">Все текущие желания исполнены ✨</p>';
+ $('#completedWishCount').textContent=completed.length;
+ $('#completedWishList').innerHTML=completed.map(completedWishCard).join('');
  renderSphereSummary();
  renderRetro();
  bindWishActions();
+ bindMonthPlans();
+ bindDecompose();
 }
 function addTask(scope,inputId,sphereId,linkId,kindId){
  const x=$('#'+inputId),text=x.value.trim();if(!text)return;
@@ -279,6 +304,17 @@ $('#saveRetro').onclick=()=>{state.retro={worked:$('#retroWorked').value,didnt:$
 $('#addSubtaskForm').onsubmit=e=>{e.preventDefault();const t=state.tasks.find(x=>x.id===currentParentId),text=$('#subtaskInput').value.trim();if(!t||!text)return;t.subtasks=t.subtasks||[];t.subtasks.push({id:uid(),text,done:false,date:null});$('#subtaskInput').value='';syncParentDone(t);save();renderSubtasks();render()};
 $('#closeSubtasks').onclick=()=>$('#subtaskDialog').close();
 
+
+$('#cancelDecompose').onclick=()=>$('#decomposeDialog').close();
+$('#decomposeForm').onsubmit=e=>{
+ e.preventDefault();const text=$('#decomposeText').value.trim();if(!text||!decomposeCtx)return;
+ const {level,id}=decomposeCtx;
+ if(level==='year'){state.monthPlans.push({id:uid(),text,done:false,parentType:'goal',parentId:id,sphere:id==='sport'?'health':id==='work'?'work':'impressions'});toast('Добавлено в месяц')}
+ if(level==='wish'){const w=state.wishes.find(x=>x.id===id);state.monthPlans.push({id:uid(),text,done:false,parentType:'wish',parentId:id,sphere:w?.sphere||'personal'});if(w){w.month=true;if(w.status==='want')w.status='planned'}toast('Желание разбито на месяц')}
+ if(level==='month'){state.tasks.push({id:uid(),text,done:false,scope:'week',sphere:id==='sport'?'health':id==='work'?'work':'impressions',linkType:'goal',linkId:id,kind:'single',subtasks:[],parentType:'monthGoal',parentId:id});toast('Добавлено в неделю')}
+ if(level==='monthPlan'){const p=state.monthPlans.find(x=>x.id===id);state.tasks.push({id:uid(),text,done:false,scope:'week',sphere:p?.sphere||'personal',linkType:p?.parentType==='wish'?'wish':p?.parentType==='goal'?'goal':null,linkId:p?.parentId||null,kind:'single',subtasks:[],parentType:'monthPlan',parentId:id});toast('Добавлено в неделю')}
+ save();$('#decomposeDialog').close();render()
+};
 $('#logout').onclick=async()=>{await sb.auth.signOut();location.reload()};
 (async()=>{const {data:{session}}=await sb.auth.getSession();if(session?.user){user=session.user;try{await loadState();$('#authGate').classList.add('hidden');$('#app').classList.remove('hidden');render()}catch(e){$('#authMessage').textContent='Не удалось загрузить данные из Supabase: '+e.message}}})();
 })();

@@ -63,6 +63,12 @@
       <section class="screen" data-screen="month">
         <div class="head"><div><div class="eyebrow" id="monthLabel"></div><h2>Месяц</h2></div></div>
         <div id="monthGoals"></div>
+        <h3 class="section-title">Планы и мысли</h3>
+        <p class="hint">Свободное пространство по главным направлениям месяца. Это ещё не задачи.</p>
+        <div id="monthThoughts"></div>
+        <h3 class="section-title">Планы месяца</h3>
+        <p class="hint">Части больших целей и желаний, которые ты решила взять в этот месяц.</p>
+        <div id="monthPlans"></div>
         <h3 class="section-title">Желания месяца</h3>
         <p class="hint">Желания, которые ты решила приблизить именно сейчас.</p>
         <div id="monthWishes"></div>
@@ -86,14 +92,14 @@
 
         <div class="section-row">
           <div>
-            <h3 class="section-title compact">50 желаний · <span id="wishCount"></span></h3>
-            <p class="hint">Желание → месяц → конкретная задача.</p>
+            <h3 class="section-title compact">Мои желания · <span id="wishCount"></span></h3>
+            <p class="hint">Практика «50 желаний»: добавляй столько, сколько действительно есть сейчас.</p>
           </div>
           <button id="addWishBtn" class="mini">+ желание</button>
         </div>
         <div class="wish-progress"><div id="wishProgress"></div></div>
         <div id="wishList"></div>
-
+        <details class="completed-wishes"><summary>Исполнено · <span id="completedWishCount">0</span></summary><div id="completedWishList"></div></details>
         <h3 class="section-title">Баланс сфер</h3>
         <p class="hint">По задачам, которые уже есть в планере.</p>
         <div id="sphereSummary"></div>
@@ -132,6 +138,13 @@
       <button id="closeSubtasks" class="secondary">Готово</button>
     </div>
   </dialog>
+
+  <dialog id="decomposeDialog"><form id="decomposeForm" class="dialog-card">
+    <div class="eyebrow">РАЗБИТЬ ДАЛЬШЕ</div><h3 id="decomposeTitle">Следующий шаг</h3><p class="hint" id="decomposeHint"></p>
+    <label class="field-label">Что сделать на следующем уровне?<input id="decomposeText" required></label>
+    <div class="dialog-actions"><button type="button" id="cancelDecompose" class="secondary">Отмена</button><button type="submit" class="primary">Добавить</button></div>
+  </form></dialog>
+  <div id="celebration" class="celebration hidden"><div class="celebration-sparkles">✦ ✨ ✦</div><div class="retriever">🐕</div><div class="celebration-copy">Утащено в выполненное!</div></div>
   <script src="./app.js"></script>
 </body>
 </html>
