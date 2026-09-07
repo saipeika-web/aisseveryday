@@ -32,19 +32,44 @@
 
     <main>
       <section class="screen active" data-screen="today">
-        <div class="head"><div><div class="eyebrow">ПЛАН НА ДЕНЬ</div><h2 id="selectedDayTitle">Сегодня</h2></div><span id="todayCount"></span></div>
+        <div class="day-topbar">
+          <button id="prevDay" class="round-icon" aria-label="Предыдущий день">←</button>
+          <button id="openDatePicker" class="day-title-button">
+            <span class="eyebrow" id="selectedDateLabel">СЕГОДНЯ</span>
+            <strong id="selectedDayTitle">Сегодня</strong>
+          </button>
+          <button id="nextDay" class="round-icon" aria-label="Следующий день">→</button>
+          <input id="dayDatePicker" type="date" class="date-picker-hidden">
+        </div>
         <div class="day-strip" id="dayStrip"></div>
+
+        <section class="day-dashboard">
+          <div class="day-ring" id="dayRing">
+            <div class="day-ring-segments" id="dayRingSegments"></div>
+            <div class="day-ring-center"><strong id="dayScore">0/0</strong><span>задач</span></div>
+          </div>
+          <div class="day-message" id="dayMessage">План на день готов ✦</div>
+        </section>
+
         <div class="filters" id="todayFilters"></div>
-        <div class="streak">🔥 <div><b>Ударный режим</b><small>Держим ритм без перегруза.</small></div></div>
-        <div id="todayTasks"></div>
-        <form id="addTask" class="add add-rich">
-          <input id="taskInput" placeholder="Добавить задачу…" required>
+        <div id="overdueBlock" class="overdue-block hidden">
+          <div class="section-row compact-row"><div><h3>Осталось раньше</h3><p class="hint">Ничего не пропадает — перенеси на удобный день.</p></div></div>
+          <div id="overdueTasks"></div>
+        </div>
+
+        <div class="section-row compact-row"><div><h3>Планы дня</h3><p class="hint" id="dayPlanHint">По времени и сферам</p></div><span id="todayCount" class="count-pill"></span></div>
+        <div id="todayTasks" class="day-task-list"></div>
+
+        <form id="addTask" class="add add-rich day-add-form">
+          <input id="taskInput" placeholder="Добавить задачу на этот день…" required>
           <select id="taskSphere"></select>
           <select id="taskLink"></select>
+          <input id="taskTime" type="time" aria-label="Время">
+          <select id="taskResult"></select>
           <select id="taskKind"><option value="single">Обычная задача</option><option value="parent">Цель с подзадачами</option></select>
           <button>+</button>
         </form>
-        <details><summary>Выполнено · <span id="doneCount">0</span></summary><div id="doneTasks"></div></details>
+        <details class="done-details"><summary>Выполнено · <span id="doneCount">0</span></summary><div id="doneTasks"></div></details>
       </section>
 
       <section class="screen" data-screen="week">
@@ -56,9 +81,15 @@
           <input id="weekTaskInput" placeholder="Добавить задачу на неделю…" required>
           <select id="weekTaskSphere"></select>
           <select id="weekTaskLink"></select>
+          <input id="weekTaskDate" type="date" aria-label="Дата">
+          <input id="weekTaskTime" type="time" aria-label="Время">
+          <select id="weekTaskResult"></select>
           <select id="weekTaskKind"><option value="single">Обычная задача</option><option value="parent">Цель с подзадачами</option></select>
           <button>+</button>
         </form>
+        <h3 class="section-title">Итоги недели</h3>
+        <p class="hint">Коллекция того, что уже сделано за эту неделю.</p>
+        <div id="weekSummary" class="summary-grid"></div>
       </section>
 
       <section class="screen" data-screen="month">
@@ -73,6 +104,10 @@
         <h3 class="section-title">Желания месяца</h3>
         <p class="hint">Желания, которые ты решила приблизить именно сейчас.</p>
         <div id="monthWishes"></div>
+
+        <h3 class="section-title">Итоги месяца</h3>
+        <p class="hint">Сначала факты, потом ощущения.</p>
+        <div id="monthSummary" class="summary-grid summary-grid-large"></div>
 
         <h3 class="section-title">Ретро месяца</h3>
         <p class="hint">Цифры собираются автоматически, смысл добавляешь ты.</p>
@@ -135,8 +170,27 @@
       <div class="eyebrow">ПОДЗАДАЧИ</div>
       <h3 id="subtaskTitle">Прогресс</h3>
       <div id="subtaskList"></div>
-      <form id="addSubtaskForm" class="add"><input id="subtaskInput" placeholder="Новая подзадача…" required><button>+</button></form>
+      <form id="addSubtaskForm" class="add add-rich"><input id="subtaskInput" placeholder="Новая подзадача…" required><input id="subtaskTime" type="time"><select id="subtaskResult"></select><button>+</button></form>
       <button id="closeSubtasks" class="secondary">Готово</button>
+    </div>
+  </dialog>
+
+
+  <dialog id="moveDialog">
+    <div class="dialog-card">
+      <div class="eyebrow">ПЕРЕНЕСТИ ЗАДАЧУ</div>
+      <h3 id="moveTaskTitle">Задача</h3>
+      <div class="move-actions-grid">
+        <button type="button" id="moveTomorrow" class="quick-action">Завтра</button>
+        <button type="button" id="moveNextWeek" class="quick-action">Через неделю</button>
+      </div>
+      <label class="field-label">Другая дата<input id="moveDate" type="date"></label>
+      <label class="field-label">Время<input id="moveTime" type="time"></label>
+      <button type="button" id="moveCustom" class="primary">Перенести</button>
+      <button type="button" id="moveToWeek" class="secondary">Оставить в планах недели без даты</button>
+      <button type="button" id="addToCalendar" class="secondary">📅 Добавить в календарь устройства</button>
+      <button type="button" id="closeMoveDialog" class="secondary">Закрыть</button>
+      <p class="calendar-note">Календарь: создаётся файл .ics для импорта. Это одностороннее добавление, не двусторонняя синхронизация.</p>
     </div>
   </dialog>
 
@@ -144,13 +198,6 @@
     <div class="eyebrow">РАЗБИТЬ ДАЛЬШЕ</div><h3 id="decomposeTitle">Следующий шаг</h3><p class="hint" id="decomposeHint"></p>
     <label class="field-label">Что сделать на следующем уровне?<input id="decomposeText" required></label>
     <div class="dialog-actions"><button type="button" id="cancelDecompose" class="secondary">Отмена</button><button type="submit" class="primary">Добавить</button></div>
-  </form></dialog>
-
-  <dialog id="moveDialog"><form id="moveForm" class="dialog-card">
-    <div class="eyebrow">ПЕРЕНЕСТИ ЗАДАЧУ</div><h3 id="moveTitle">Задача</h3>
-    <label class="field-label">Новая дата<input id="moveDate" type="date" required></label>
-    <div class="quick-move"><button type="button" id="moveTomorrow">На завтра</button><button type="button" id="moveNextWeek">Через неделю</button></div>
-    <div class="dialog-actions"><button type="button" id="cancelMove" class="secondary">Отмена</button><button type="submit" class="primary">Перенести</button></div>
   </form></dialog>
   <div id="celebration" class="celebration hidden"><div class="celebration-sparkles">✦ ✨ ✦</div><div class="retriever">🐕</div><div class="celebration-copy">Утащено в выполненное!</div></div>
   <script src="./app.js"></script>
