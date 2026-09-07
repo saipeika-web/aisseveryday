@@ -32,7 +32,8 @@
 
     <main>
       <section class="screen active" data-screen="today">
-        <div class="head"><div><div class="eyebrow">СЕГОДНЯ</div><h2>Сегодня</h2></div><span id="todayCount"></span></div>
+        <div class="head"><div><div class="eyebrow">ПЛАН НА ДЕНЬ</div><h2 id="selectedDayTitle">Сегодня</h2></div><span id="todayCount"></span></div>
+        <div class="day-strip" id="dayStrip"></div>
         <div class="filters" id="todayFilters"></div>
         <div class="streak">🔥 <div><b>Ударный режим</b><small>Держим ритм без перегруза.</small></div></div>
         <div id="todayTasks"></div>
@@ -143,6 +144,13 @@
     <div class="eyebrow">РАЗБИТЬ ДАЛЬШЕ</div><h3 id="decomposeTitle">Следующий шаг</h3><p class="hint" id="decomposeHint"></p>
     <label class="field-label">Что сделать на следующем уровне?<input id="decomposeText" required></label>
     <div class="dialog-actions"><button type="button" id="cancelDecompose" class="secondary">Отмена</button><button type="submit" class="primary">Добавить</button></div>
+  </form></dialog>
+
+  <dialog id="moveDialog"><form id="moveForm" class="dialog-card">
+    <div class="eyebrow">ПЕРЕНЕСТИ ЗАДАЧУ</div><h3 id="moveTitle">Задача</h3>
+    <label class="field-label">Новая дата<input id="moveDate" type="date" required></label>
+    <div class="quick-move"><button type="button" id="moveTomorrow">На завтра</button><button type="button" id="moveNextWeek">Через неделю</button></div>
+    <div class="dialog-actions"><button type="button" id="cancelMove" class="secondary">Отмена</button><button type="submit" class="primary">Перенести</button></div>
   </form></dialog>
   <div id="celebration" class="celebration hidden"><div class="celebration-sparkles">✦ ✨ ✦</div><div class="retriever">🐕</div><div class="celebration-copy">Утащено в выполненное!</div></div>
   <script src="./app.js"></script>
