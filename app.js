@@ -58,6 +58,13 @@ const seed={
 seed.retro={worked:'',didnt:'',why:'',insight:'',change:''};
 let state=structuredClone(seed),user=null,saveTimer,currentParentId=null,selectedDay=null,moveCtx=null;
 let filters={today:'all',week:'all'};
+let selectedWeekStart=null;
+function mondayOf(value){const d=parseISODate(value);d.setDate(d.getDate()-(d.getDay()+6)%7);return isoDate(d)}
+function weekAnchor(){return selectedWeekStart||mondayOf(todayISO())}
+function weekEnd(){return shiftDate(weekAnchor(),6)}
+function weekOfTask(t){return t.weekStart|| (t.date?mondayOf(t.date):mondayOf(todayISO()))}
+function weekLabel(){const a=parseISODate(weekAnchor()),b=parseISODate(weekEnd());return `${a.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})} — ${b.toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'})}`}
+
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random());
@@ -132,7 +139,8 @@ function dayLabel(d){
  return new Intl.DateTimeFormat('ru-RU',{weekday:'short',day:'numeric',month:'short'}).format(d).replace('.','');
 }
 function dateOptions(selected){
- return `<option value="">Выбрать день</option>`+weekDays().map(d=>`<option value="${isoDate(d)}" ${selected===isoDate(d)?'selected':''}>${dayLabel(d)}</option>`).join('');
+ const start=parseISODate(weekAnchor());const days=Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d});
+ return `<option value="">Выбрать день</option>`+days.map(d=>`<option value="${isoDate(d)}" ${selected===isoDate(d)?'selected':''}>${dayLabel(d)}</option>`).join('');
 }
 
 function parseISODate(s){const [y,m,d]=String(s).split('-').map(Number);const x=new Date(y,m-1,d);x.setHours(12,0,0,0);return x}
@@ -215,7 +223,7 @@ function openMoveTask(ctx){
  $('#moveDialog').showModal();
 }
 function getMoveItem(){if(!moveCtx)return null;if(moveCtx.kind==='task')return state.tasks.find(t=>t.id===moveCtx.taskId);const p=state.tasks.find(t=>t.id===moveCtx.parentId);return (p?.subtasks||[]).find(s=>s.id===moveCtx.subId)}
-function applyMove(date,time){const item=getMoveItem();if(!item)return;item.date=date||null;item.time=time||null;if(moveCtx.kind==='task'&&date)item.scope=item.scope==='week'?'week':'today';save();$('#moveDialog').close();render();toast(date?'Перенесено':'Оставлено без даты')}
+function applyMove(date,time){const item=getMoveItem();if(!item)return;item.date=date||null;item.time=time||null;if(moveCtx.kind==='task'&&date){item.scope=item.scope==='week'?'week':'today';if(item.scope==='week')item.weekStart=mondayOf(date)}save();$('#moveDialog').close();render();toast(date?'Перенесено':'Оставлено без даты')}
 function icsEscape(s){return String(s||'').replace(/\\/g,'\\\\').replace(/,/g,'\\,').replace(/;/g,'\\;').replace(/\n/g,'\\n')}
 function icsDate(date,time){const d=date.replaceAll('-','');return time?d+'T'+time.replace(':','')+'00':d}
 function exportCalendar(){
@@ -343,7 +351,7 @@ function renderSubtasks(){
      <input type="checkbox" data-sub-check="${s.id}" ${s.done?'checked':''}>
      <div class="subtask-copy">
        <span class="${s.done?'done-text':''}">${esc(s.text)}</span>
-       <select data-sub-date="${s.id}">${dateOptions(s.date)}</select>
+       <input data-sub-date="${s.id}" type="date" value="${s.date||''}" aria-label="Дата подзадачи">
        <input data-sub-time="${s.id}" type="time" value="${s.time||''}">
        <select data-sub-result="${s.id}">${RESULT_TYPES.map(r=>`<option value="${r.id}" ${r.id===(s.resultType||t.resultType||'')?'selected':''}>${r.icon} ${r.label}</option>`).join('')}</select>
      </div>
@@ -366,17 +374,20 @@ function render(){
  const done=[...regular.filter(t=>t.done).map(t=>({kind:'task',item:t})),...scheduledFiltered.filter(x=>x.sub.done).map(x=>({kind:'sub',item:x.sub,parent:x.parent}))].sort(sortByTime);
  $('#todayTasks').replaceChildren(...active.map(x=>x.kind==='task'?taskEl(x.item,'today'):scheduledSubtaskEl(x.parent,x.item)));$('#doneTasks').replaceChildren(...done.map(x=>x.kind==='task'?taskEl(x.item,'today'):scheduledSubtaskEl(x.parent,x.item)));
  $('#doneCount').textContent=done.length;$('#todayCount').textContent=done.length+'/'+(active.length+done.length);$('#dayPlanHint').textContent=active.some(x=>x.item.time)?'По времени и сферам':'Без жёсткого расписания';renderOverdue(day);
- $('#weekFocus').textContent=state.weekFocus;const w=state.tasks.filter(t=>t.scope==='week'&&(filters.week==='all'||t.sphere===filters.week));$('#weekTasks').replaceChildren(...w.map(t=>taskEl(t,'week')));$('#weekSummary').innerHTML=summaryHtml('week');
+ $('#weekFocus').textContent=state.weekFocus;$('#weekPeriod').textContent=weekLabel();$('#weekTaskDate').min=weekAnchor();$('#weekTaskDate').max=weekEnd();$('#weekDatePicker').value=weekAnchor();const w=state.tasks.filter(t=>t.scope==='week'&&weekOfTask(t)===weekAnchor()&&(filters.week==='all'||t.sphere===filters.week));$('#weekTasks').replaceChildren(...w.map(t=>taskEl(t,'week')));$('#weekSummary').innerHTML=summaryHtml('week');
  $('#monthGoals').innerHTML=state.monthGoals.map(g=>goalHtml(g,true)).join('');renderMonthThoughts();$('#monthPlans').innerHTML=state.monthPlans.map(monthPlanHtml).join('')||'<p class="empty">Пока пусто. Нажми «Разбить дальше» у цели года или желания.</p>';$('#monthWishes').innerHTML=state.wishes.filter(x=>x.month&&x.status!=='done').map(monthWishCard).join('')||'<p class="empty">Пока ни одно желание не выбрано на этот месяц.</p>';$('#monthSummary').innerHTML=summaryHtml('month');
  $('#yearGoals').innerHTML=state.yearGoals.map(g=>goalHtml(g,false)).join('');const completed=state.wishes.filter(x=>x.status==='done'),activeWishes=state.wishes.filter(x=>x.status!=='done');$('#wishCount').textContent=state.wishes.length+' всего · '+completed.length+' исполнено';$('#wishProgress').style.width=(state.wishes.length?Math.round(completed.length/state.wishes.length*100):0)+'%';$('#wishList').innerHTML=activeWishes.map(wishCard).join('')||'<p class="empty">Все текущие желания исполнены ✨</p>';$('#completedWishCount').textContent=completed.length;$('#completedWishList').innerHTML=completed.map(completedWishCard).join('');renderSphereSummary();renderRetro();bindWishActions();bindMonthPlans();bindDecompose();
 }
 function addTask(scope,inputId,sphereId,linkId,kindId,dateId=null,timeId=null,resultId=null){
  const x=$('#'+inputId),text=x.value.trim();if(!text)return;const link=$('#'+linkId).value;let linkType=null,linkedId=null;if(link)[linkType,linkedId]=link.split(':');const kind=$('#'+kindId).value;
  const date=dateId&&$('#'+dateId)?($('#'+dateId).value||null):(scope==='today'?selectedDate():null),time=timeId&&$('#'+timeId)?($('#'+timeId).value||null):null,resultType=resultId&&$('#'+resultId)?($('#'+resultId).value||null):null;
- state.tasks.push({id:uid(),text,done:false,scope,sphere:$('#'+sphereId).value,linkType,linkId:linkedId,kind,subtasks:[],date,time,resultType,completedAt:null});x.value='';if(timeId&&$('#'+timeId))$('#'+timeId).value='';save();render()
+ state.tasks.push({id:uid(),text,done:false,scope,sphere:$('#'+sphereId).value,linkType,linkId:linkedId,kind,subtasks:[],date,time,resultType,completedAt:null,...(scope==='week'?{weekStart:date?mondayOf(date):weekAnchor()}:{})});x.value='';if(timeId&&$('#'+timeId))$('#'+timeId).value='';save();render()
 }
 $$('nav button').forEach(b=>b.onclick=()=>{$$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===b.dataset.target));$$('nav button').forEach(x=>x.classList.toggle('active',x===b))});
 $('#addTask').onsubmit=e=>{e.preventDefault();addTask('today','taskInput','taskSphere','taskLink','taskKind',null,'taskTime','taskResult')};
+$('#prevWeek').onclick=()=>{selectedWeekStart=shiftDate(weekAnchor(),-7);render()};
+$('#nextWeek').onclick=()=>{selectedWeekStart=shiftDate(weekAnchor(),7);render()};
+$('#weekDatePicker').onchange=e=>{if(e.target.value){selectedWeekStart=mondayOf(e.target.value);render()}};
 $('#addWeekTask').onsubmit=e=>{e.preventDefault();addTask('week','weekTaskInput','weekTaskSphere','weekTaskLink','weekTaskKind','weekTaskDate','weekTaskTime','weekTaskResult')};
 
 $('#addWishBtn').onclick=()=>{$('#wishSphere').innerHTML=SPHERES.map(s=>`<option value="${s.id}">${s.icon} ${s.label}</option>`).join('');$('#wishDialog').showModal()};
