@@ -201,6 +201,7 @@ function daySphereStats(day){
 function renderDayRing(day){
  const stats=daySphereStats(day),total=stats.reduce((n,x)=>n+x.total,0),done=stats.reduce((n,x)=>n+x.done,0);
  $('#dayScore').textContent=done+'/'+total;
+ renderLu(day,done,total);
  $('#dayRingSegments').innerHTML=stats.map((x,i)=>`<span class="ring-pill" style="--i:${i};--ring-color:${sphereColor(x.sphere.id)};--ring-opacity:${x.total?0.35+0.65*x.pct:0.16}" title="${x.sphere.label}: ${x.done}/${x.total}">${x.sphere.icon}</span>`).join('');
  $('#dayMessage').textContent=total===0?'Свободный день — можно оставить так ✦':done===total?'Сегодня всё закрыто ✨':done?`Уже ${done} из ${total}. Осталось ${total-done}`:`План готов: ${total} задач`;
 }
@@ -429,3 +430,13 @@ $('#decomposeForm').onsubmit=e=>{
 $('#logout').onclick=async()=>{await sb.auth.signOut();location.reload()};
 (async()=>{const {data:{session}}=await sb.auth.getSession();if(session?.user){user=session.user;try{await loadState();$('#authGate').classList.add('hidden');$('#app').classList.remove('hidden');render()}catch(e){$('#authMessage').textContent='Не удалось загрузить данные из Supabase: '+e.message}}})();
 })();
+function renderLu(day,done,total){
+ const past=day<isoDate(new Date());
+ const mood=!total?'rest':done===total?'done':past?'think':done===0?'ready':done*2>=total?'joy':'focus';
+ const messages={rest:'Отдых тоже в плане!',done:'Все дела сделаны! Самуил гордится нами.',think:'Не всё получилось. Можно перенести оставшееся.',ready:'Ну что, начнём с одного дела?',joy:'Половина позади! Так держать!',focus:'Первый шаг уже сделан. Продолжаем!'};
+ const img=document.getElementById('luImage');if(!img)return;
+ const src='./lu-'+mood+'.webp';if(img.getAttribute('src')!==src)img.src=src;
+ document.getElementById('luMessage').textContent=messages[mood];
+ document.getElementById('luCount').textContent=done+' / '+total+' задач';
+ document.getElementById('luProgress').style.width=(total?100*done/total:0)+'%';
+}

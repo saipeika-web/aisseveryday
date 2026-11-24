@@ -6,7 +6,7 @@
   <title>Мой навигатор</title>
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="./styles.css?v=7.2">
+  <link rel="stylesheet" href="./styles.css?v=8.0-lu">
 </head>
 <body>
   <div id="authGate" class="auth-gate">
@@ -43,6 +43,7 @@
         </div>
         <div class="day-strip" id="dayStrip"></div>
 
+        <section class="lu-card" id="luCard"><div class="lu-copy"><div class="lu-label">ЛУ И САМУИЛ</div><strong id="luMessage" aria-live="polite">Какие планы?</strong><div class="lu-progress"><div id="luProgress"></div></div><small id="luCount"></small></div><img id="luImage" src="./lu-ready.webp" alt="Лу и Самуил"></section>
         <section class="day-dashboard">
           <div class="day-ring" id="dayRing">
             <div class="day-ring-segments" id="dayRingSegments"></div>
@@ -199,7 +200,7 @@
     <label class="field-label">Что сделать на следующем уровне?<input id="decomposeText" required></label>
     <div class="dialog-actions"><button type="button" id="cancelDecompose" class="secondary">Отмена</button><button type="submit" class="primary">Добавить</button></div>
   </form></dialog>
-  <div id="celebration" class="celebration hidden"><div class="celebration-sparkles">✦ ✨ ✦</div><div class="retriever">🐕</div><div class="celebration-copy">Утащено в выполненное!</div></div>
-  <script src="./app.js?v=7.2"></script>
+  <div id="celebration" class="celebration hidden"><div class="celebration-sparkles">✦ ✨ ✦</div><img class="lu-celebrate" src="./lu-joy.webp" alt=""><div class="celebration-copy">Ещё одно дело сделано!</div></div>
+  <script src="./app.js?v=8.0-lu"></script>
 </body>
 </html>
